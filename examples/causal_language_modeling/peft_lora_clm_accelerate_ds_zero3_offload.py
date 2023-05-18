@@ -106,7 +106,8 @@ class TorchTracemalloc:
         # print(f"delta used/peak {self.used:4d}/{self.peaked:4d}")
 
 
-def preprocess_function(examples, text_column="Tweet text", label_column="text_label"):
+def preprocess_function(examples, model_name_or_path='bigscience/bloom-560m', max_length=128, text_column="Tweet text", label_column="text_label"):
+    tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
     batch_size = len(examples[text_column])
     inputs = [f"{text_column} : {x} Label : " for x in examples[text_column]]
     targets = [str(x) for x in examples[label_column]]
@@ -178,13 +179,9 @@ def main():
     set_seed(seed)
 
     dataset, classes = dload_and_prepare_ds(dataset_name)
-    
-
 
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-
     
-
     with accelerator.main_process_first():
         processed_datasets = dataset.map(
             preprocess_function,
