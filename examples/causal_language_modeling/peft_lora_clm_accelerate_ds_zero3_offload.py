@@ -150,7 +150,18 @@ def test_preprocess_function(examples):
         model_inputs["input_ids"][i] = torch.tensor(model_inputs["input_ids"][i][:max_length])
         model_inputs["attention_mask"][i] = torch.tensor(model_inputs["attention_mask"][i][:max_length])
     return model_inputs
-        
+     
+def dload_and_prepare_ds():
+    dataset = load_dataset("ought/raft", dataset_name)
+    classes = [k.replace("_", " ") for k in dataset["train"].features["Label"].names]
+    dataset = dataset.map(
+        lambda x: {"text_label": [classes[label] for label in x["Label"]]},
+        batched=True,
+        num_proc=1,
+    )
+    return dataset, classes
+    
+    
 def main():
     accelerator = Accelerator()
     model_name_or_path = "bigscience/bloomz-7b1"
@@ -166,13 +177,9 @@ def main():
     do_test = False
     set_seed(seed)
 
-    dataset = load_dataset("ought/raft", dataset_name)
-    classes = [k.replace("_", " ") for k in dataset["train"].features["Label"].names]
-    dataset = dataset.map(
-        lambda x: {"text_label": [classes[label] for label in x["Label"]]},
-        batched=True,
-        num_proc=1,
-    )
+    dataset, classes = dload_and_prepare_ds()
+    
+
 
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
 
