@@ -151,7 +151,7 @@ def test_preprocess_function(examples):
         model_inputs["attention_mask"][i] = torch.tensor(model_inputs["attention_mask"][i][:max_length])
     return model_inputs
      
-def dload_and_prepare_ds():
+def dload_and_prepare_ds(dataset_name):
     dataset = load_dataset("ought/raft", dataset_name)
     classes = [k.replace("_", " ") for k in dataset["train"].features["Label"].names]
     dataset = dataset.map(
@@ -177,7 +177,7 @@ def main():
     do_test = False
     set_seed(seed)
 
-    dataset, classes = dload_and_prepare_ds()
+    dataset, classes = dload_and_prepare_ds(dataset_name)
     
 
 
