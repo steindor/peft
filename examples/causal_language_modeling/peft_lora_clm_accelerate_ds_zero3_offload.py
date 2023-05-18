@@ -106,6 +106,51 @@ class TorchTracemalloc:
         # print(f"delta used/peak {self.used:4d}/{self.peaked:4d}")
 
 
+def preprocess_function(examples):
+    batch_size = len(examples[text_column])
+    inputs = [f"{text_column} : {x} Label : " for x in examples[text_column]]
+    targets = [str(x) for x in examples[label_column]]
+    model_inputs = tokenizer(inputs)
+    labels = tokenizer(targets)
+    for i in range(batch_size):
+        sample_input_ids = model_inputs["input_ids"][i]
+        label_input_ids = labels["input_ids"][i] + [tokenizer.pad_token_id]
+        model_inputs["input_ids"][i] = sample_input_ids + label_input_ids
+        labels["input_ids"][i] = [-100] * len(sample_input_ids) + label_input_ids
+        model_inputs["attention_mask"][i] = [1] * len(model_inputs["input_ids"][i])
+    for i in range(batch_size):
+        sample_input_ids = model_inputs["input_ids"][i]
+        label_input_ids = labels["input_ids"][i]
+        model_inputs["input_ids"][i] = [tokenizer.pad_token_id] * (
+            max_length - len(sample_input_ids)
+        ) + sample_input_ids
+        model_inputs["attention_mask"][i] = [0] * (max_length - len(sample_input_ids)) + model_inputs[
+            "attention_mask"
+        ][i]
+        labels["input_ids"][i] = [-100] * (max_length - len(sample_input_ids)) + label_input_ids
+        model_inputs["input_ids"][i] = torch.tensor(model_inputs["input_ids"][i][:max_length])
+        model_inputs["attention_mask"][i] = torch.tensor(model_inputs["attention_mask"][i][:max_length])
+        labels["input_ids"][i] = torch.tensor(labels["input_ids"][i][:max_length])
+    model_inputs["labels"] = labels["input_ids"]
+    return model_inputs
+
+def test_preprocess_function(examples):
+    batch_size = len(examples[text_column])
+    inputs = [f"{text_column} : {x} Label : " for x in examples[text_column]]
+    model_inputs = tokenizer(inputs)
+    # print(model_inputs)
+    for i in range(batch_size):
+        sample_input_ids = model_inputs["input_ids"][i]
+        model_inputs["input_ids"][i] = [tokenizer.pad_token_id] * (
+            max_length - len(sample_input_ids)
+        ) + sample_input_ids
+        model_inputs["attention_mask"][i] = [0] * (max_length - len(sample_input_ids)) + model_inputs[
+            "attention_mask"
+        ][i]
+        model_inputs["input_ids"][i] = torch.tensor(model_inputs["input_ids"][i][:max_length])
+        model_inputs["attention_mask"][i] = torch.tensor(model_inputs["attention_mask"][i][:max_length])
+    return model_inputs
+        
 def main():
     accelerator = Accelerator()
     model_name_or_path = "bigscience/bloomz-7b1"
@@ -131,50 +176,7 @@ def main():
 
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
 
-    def preprocess_function(examples):
-        batch_size = len(examples[text_column])
-        inputs = [f"{text_column} : {x} Label : " for x in examples[text_column]]
-        targets = [str(x) for x in examples[label_column]]
-        model_inputs = tokenizer(inputs)
-        labels = tokenizer(targets)
-        for i in range(batch_size):
-            sample_input_ids = model_inputs["input_ids"][i]
-            label_input_ids = labels["input_ids"][i] + [tokenizer.pad_token_id]
-            model_inputs["input_ids"][i] = sample_input_ids + label_input_ids
-            labels["input_ids"][i] = [-100] * len(sample_input_ids) + label_input_ids
-            model_inputs["attention_mask"][i] = [1] * len(model_inputs["input_ids"][i])
-        for i in range(batch_size):
-            sample_input_ids = model_inputs["input_ids"][i]
-            label_input_ids = labels["input_ids"][i]
-            model_inputs["input_ids"][i] = [tokenizer.pad_token_id] * (
-                max_length - len(sample_input_ids)
-            ) + sample_input_ids
-            model_inputs["attention_mask"][i] = [0] * (max_length - len(sample_input_ids)) + model_inputs[
-                "attention_mask"
-            ][i]
-            labels["input_ids"][i] = [-100] * (max_length - len(sample_input_ids)) + label_input_ids
-            model_inputs["input_ids"][i] = torch.tensor(model_inputs["input_ids"][i][:max_length])
-            model_inputs["attention_mask"][i] = torch.tensor(model_inputs["attention_mask"][i][:max_length])
-            labels["input_ids"][i] = torch.tensor(labels["input_ids"][i][:max_length])
-        model_inputs["labels"] = labels["input_ids"]
-        return model_inputs
-
-    def test_preprocess_function(examples):
-        batch_size = len(examples[text_column])
-        inputs = [f"{text_column} : {x} Label : " for x in examples[text_column]]
-        model_inputs = tokenizer(inputs)
-        # print(model_inputs)
-        for i in range(batch_size):
-            sample_input_ids = model_inputs["input_ids"][i]
-            model_inputs["input_ids"][i] = [tokenizer.pad_token_id] * (
-                max_length - len(sample_input_ids)
-            ) + sample_input_ids
-            model_inputs["attention_mask"][i] = [0] * (max_length - len(sample_input_ids)) + model_inputs[
-                "attention_mask"
-            ][i]
-            model_inputs["input_ids"][i] = torch.tensor(model_inputs["input_ids"][i][:max_length])
-            model_inputs["attention_mask"][i] = torch.tensor(model_inputs["attention_mask"][i][:max_length])
-        return model_inputs
+    
 
     with accelerator.main_process_first():
         processed_datasets = dataset.map(
