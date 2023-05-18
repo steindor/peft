@@ -106,7 +106,7 @@ class TorchTracemalloc:
         # print(f"delta used/peak {self.used:4d}/{self.peaked:4d}")
 
 
-def preprocess_function(examples):
+def preprocess_function(examples, text_column="Tweet text", label_column="text_label"):
     batch_size = len(examples[text_column])
     inputs = [f"{text_column} : {x} Label : " for x in examples[text_column]]
     targets = [str(x) for x in examples[label_column]]
